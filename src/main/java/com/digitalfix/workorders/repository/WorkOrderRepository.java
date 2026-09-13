@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
     List<WorkOrder> findByClienteEmail(String email);
+    List<WorkOrder> findByEstado(com.digitalfix.workorders.domain.WorkOrderStatus estado);
+    List<WorkOrder> findByTecnicoAsignado(String tecnico);
 }
