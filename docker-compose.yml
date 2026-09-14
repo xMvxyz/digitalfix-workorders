@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=oracle
+      - ORACLE_URL=jdbc:oracle:thin:@oracle:1521/XE
+      - ORACLE_USER=digitalfix
+      - ORACLE_PASSWORD=digitalfix
+    depends_on:
+      - oracle
+  oracle:
+    image: gvenzl/oracle-xe:21-slim
+    environment:
+      - ORACLE_PASSWORD=digitalfix
+      - APP_USER=digitalfix
+      - APP_USER_PASSWORD=digitalfix
+    ports:
+      - "1521:1521"

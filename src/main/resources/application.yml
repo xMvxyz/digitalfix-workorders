@@ -28,6 +28,11 @@ management:
       exposure:
         include: health,info
 
+info:
+  app:
+    name: digitalfix-workorders
+    version: 0.0.1-SNAPSHOT
+
 ---
 spring:
   config:

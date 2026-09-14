@@ -1,6 +1,7 @@
 package com.digitalfix.workorders.domain;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -15,14 +16,19 @@ public class WorkOrder {
     private Long id;
 
     @NotBlank
+    @Email
+    @Column(nullable = false)
     private String clienteEmail;
 
     @NotBlank
+    @Column(nullable = false)
     private String servicio;
 
+    @Column(length = 2000)
     private String descripcion;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
     @Builder.Default
     private WorkOrderStatus estado = WorkOrderStatus.CREADA;
 
@@ -30,6 +36,7 @@ public class WorkOrder {
 
     private Long repuestoId;
 
+    @Column(updatable = false)
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
