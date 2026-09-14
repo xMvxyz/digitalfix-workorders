@@ -1,8 +1,8 @@
 package com.digitalfix.workorders.exception;
 
-import com.digitalfix.workorders.dto.ErrorResponse;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.ConstraintViolationException;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -10,8 +10,10 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.digitalfix.workorders.dto.ErrorResponse;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -20,6 +22,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex, HttpServletRequest req) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ErrorResponse.of(404, "Not Found", ex.getMessage(), req.getRequestURI()));
+    }
+
+    @ExceptionHandler(WorkOrderAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(WorkOrderAccessDeniedException ex, HttpServletRequest req) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ErrorResponse.of(403, "Forbidden", ex.getMessage(), req.getRequestURI()));
     }
 
     @ExceptionHandler(InvalidStateTransitionException.class)
