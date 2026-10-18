@@ -14,6 +14,7 @@ import com.digitalfix.workorders.dto.WorkOrderResponse;
 import com.digitalfix.workorders.exception.InvalidStateTransitionException;
 import com.digitalfix.workorders.exception.ResourceNotFoundException;
 import com.digitalfix.workorders.exception.WorkOrderAccessDeniedException;
+import com.digitalfix.workorders.messaging.WorkOrderEventPublisher;
 import com.digitalfix.workorders.repository.WorkOrderRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class WorkOrderService {
 
     private final WorkOrderRepository repository;
+    private final WorkOrderEventPublisher eventPublisher;
 
     private static final Map<WorkOrderStatus, WorkOrderStatus> NEXT = Map.of(
             WorkOrderStatus.CREADA, WorkOrderStatus.ASIGNADA,
@@ -95,7 +97,13 @@ public class WorkOrderService {
         }
 
         wo.setEstado(target);
-        return toResponse(repository.save(wo));
+        WorkOrder saved = repository.save(wo);
+        if (target == WorkOrderStatus.ASIGNADA) {
+            eventPublisher.publishAssigned(saved);
+        } else if (target == WorkOrderStatus.CERRADA) {
+            eventPublisher.publishClosed(saved);
+        }
+        return toResponse(saved);
     }
 
     @Transactional

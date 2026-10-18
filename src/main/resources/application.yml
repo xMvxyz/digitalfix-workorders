@@ -3,15 +3,16 @@ server:
 
 spring:
   datasource:
-    url: jdbc:h2:mem:workordersdb
-    driverClassName: org.h2.Driver
-    username: sa
-    password: 
+    url: "${ORACLE_DB_URL:jdbc:oracle:thin:@//digitalfix-rds.c2xes83rw6s6.us-east-1.rds.amazonaws.com:1521/DIGIFIX}"
+    driverClassName: oracle.jdbc.OracleDriver
+    username: ${ORACLE_DB_USER:admin}
+    password: "${ORACLE_DB_PASSWORD:Admin#2026*}"
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.OracleDialect
     hibernate:
       ddl-auto: update
     show-sql: true
-  h2:
-    console:
-      enabled: true
+  rabbitmq:
+    addresses: ${RABBITMQ_ADDRESSES:localhost:5672,localhost:5673}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
