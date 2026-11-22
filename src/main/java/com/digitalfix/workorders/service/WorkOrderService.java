@@ -15,6 +15,7 @@ import com.digitalfix.workorders.exception.InvalidStateTransitionException;
 import com.digitalfix.workorders.exception.ResourceNotFoundException;
 import com.digitalfix.workorders.exception.WorkOrderAccessDeniedException;
 import com.digitalfix.workorders.messaging.WorkOrderEventPublisher;
+import com.digitalfix.workorders.messaging.kafka.KafkaEventPublisher;
 import com.digitalfix.workorders.repository.WorkOrderRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class WorkOrderService {
 
     private final WorkOrderRepository repository;
     private final WorkOrderEventPublisher eventPublisher;
+    private final KafkaEventPublisher kafkaEventPublisher;
 
     private static final Map<WorkOrderStatus, WorkOrderStatus> NEXT = Map.of(
             WorkOrderStatus.CREADA, WorkOrderStatus.ASIGNADA,
@@ -62,13 +64,25 @@ public class WorkOrderService {
                 .repuestoId(req.repuestoId())
                 .estado(WorkOrderStatus.CREADA)
                 .build();
-        return toResponse(repository.save(wo));
+            
+        WorkOrder saved = repository.save(wo);
+
+        kafkaEventPublisher.publishOrderEvent(saved, "ORDER_CREADA");
+        kafkaEventPublisher.publishAuditEvent(
+                saved,
+                "CREAR_ORDEN",
+                null,
+                email
+        );
+
+        return toResponse(saved);
     }
 
     @Transactional
     public WorkOrderResponse changeStatus(Long id, WorkOrderStatus target, String tecnico, String email, String role) {
         WorkOrder wo = getOrThrow(id);
         assertCanAccess(wo, email, role);
+
         WorkOrderStatus current = wo.getEstado();
 
         if (TERMINAL.contains(current)) {
@@ -78,7 +92,14 @@ public class WorkOrderService {
         if (target == WorkOrderStatus.CANCELADA) {
             // CANCELADA permitida desde cualquier estado no terminal
             wo.setEstado(target);
-            return toResponse(repository.save(wo));
+
+            WorkOrder saved = repository.save(wo);
+
+            kafkaEventPublisher.publishOrderEvent(saved, "ORDER_CANCELADA");
+
+            kafkaEventPublisher.publishAuditEvent(saved, "CAMBIO_ESTADO", current, email);
+
+            return toResponse(saved);
         }
 
         if (current == WorkOrderStatus.CREADA && target != WorkOrderStatus.ASIGNADA) {
@@ -86,6 +107,7 @@ public class WorkOrderService {
         }
 
         WorkOrderStatus expected = NEXT.get(current);
+
         if (expected == null || target != expected) {
             throw new InvalidStateTransitionException(
                     "Transicion no permitida: " + current + " -> " + target + ". Esperado: " + expected);
@@ -97,12 +119,22 @@ public class WorkOrderService {
         }
 
         wo.setEstado(target);
+
         WorkOrder saved = repository.save(wo);
+
+        // RabbitMQ: CONSERVAR
         if (target == WorkOrderStatus.ASIGNADA) {
             eventPublisher.publishAssigned(saved);
         } else if (target == WorkOrderStatus.CERRADA) {
             eventPublisher.publishClosed(saved);
         }
+        
+        // Kafka: publicar evento de negocio
+        kafkaEventPublisher.publishOrderEvent(saved, "ORDEN_" + target.name());
+
+        // Kafka: registrar auditoria del cambio
+        kafkaEventPublisher.publishAuditEvent(saved, "CAMBIO_ESTADO", current, email);
+
         return toResponse(saved);
     }
 
