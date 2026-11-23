@@ -67,7 +67,7 @@ public class WorkOrderService {
             
         WorkOrder saved = repository.save(wo);
 
-        kafkaEventPublisher.publishOrderEvent(saved, "ORDER_CREADA");
+        kafkaEventPublisher.publishOrderEvent(saved, "ORDEN_CREADA");
         kafkaEventPublisher.publishAuditEvent(
                 saved,
                 "CREAR_ORDEN",
@@ -95,7 +95,7 @@ public class WorkOrderService {
 
             WorkOrder saved = repository.save(wo);
 
-            kafkaEventPublisher.publishOrderEvent(saved, "ORDER_CANCELADA");
+            kafkaEventPublisher.publishOrderEvent(saved, "ORDEN_CANCELADA");
 
             kafkaEventPublisher.publishAuditEvent(saved, "CAMBIO_ESTADO", current, email);
 

@@ -15,6 +15,7 @@ import com.digitalfix.workorders.messaging.kafka.dto.WorkOrderKafkaEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.ObjectMapper;
 
 @Service 
 @Slf4j 
@@ -24,7 +25,8 @@ public class KafkaEventPublisher {
     private static final String TOPIC_EVENTOS = "digitalfix-eventos";
     private static final String TOPIC_AUDITORIA = "digitalfix-auditoria";
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     public void publishOrderEvent(WorkOrder wo, String tipo) {
         WorkOrderKafkaEvent event = new WorkOrderKafkaEvent(
@@ -63,24 +65,35 @@ public class KafkaEventPublisher {
     }
 
     private void publishAfterCommit(String topic, String key, Object event) {
-        Runnable publish = () -> kafkaTemplate.send(topic, key, event)
-                .whenComplete((result, ex) -> {
-                    if (ex != null) {
-                        log.error(
-                                "Error publicando evento Kafka. topic={} key={}",
-                                topic, key, ex
-                        );
-                        return;
-                    }
+        Runnable publish = () -> {
+            try {
+                String payload = objectMapper.writeValueAsString(event);
 
-                    log.info(
-                            "Evento Kafka publicado. topic={} partition={} offset={} key={}",
-                            topic,
-                            result.getRecordMetadata().partition(),
-                            result.getRecordMetadata().offset(),
-                            key
-                    );
-                });
+                kafkaTemplate.send(topic, key, payload)
+                        .whenComplete((result, ex) -> {
+                            if (ex != null) {
+                                log.error(
+                                        "Error publicando evento Kafka. topic={} key={}",
+                                        topic, key, ex
+                                );
+                                return;
+                            }
+
+                            log.info(
+                                    "Evento Kafka publicado. topic={} partition={} offset={} key={}",
+                                    topic,
+                                    result.getRecordMetadata().partition(),
+                                    result.getRecordMetadata().offset(),
+                                    key
+                            );
+                        });
+            } catch (Exception ex) {
+                log.error(
+                        "Kafka no disponible; evento no publicado. topic={} key={}",
+                        topic, key, ex
+                );
+            }
+        };
 
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(
